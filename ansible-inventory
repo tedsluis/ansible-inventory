@@ -1,0 +1,52 @@
+INI_FILE="hosts"
+LINE_NUM=0
+SECTIONS_NUM=0
+HOST_SECTION=""
+OTHER_SECTION=""
+	
+while read -r line || [ -n "$line" ]
+do
+	((LINE_NUM++))
+	echo line = "${SECTION_NUM}:${LINE_NUM}: [${SECTION}${OTHER_SECTION}] $line"
+
+	# Skip blank lines and comments
+	if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ] ; then
+		continue
+	fi
+
+	# Found a HOST_SETION marker?
+	if [[ "${line}" =~ ^\[[a-zA-Z0-9_\-]{1,}\][[:space:]]*$ ]] ; then
+                OTHER_SECTION=""
+		# Set HOST_SECTION var to name of section (strip [ and ] from section marker)
+                HOST_SECTION=${HOST_SECTION//[[:space:]]/}
+		HOST_SECTION="${line#[}"
+		HOST_SECTION="${HOST_SECTION%]}"
+		((SECTIONS_NUM++))
+		continue
+	fi
+
+	# Found an OTHER_SECTION marker?
+        if [[ "${line}" =~ ^\[[a-zA-Z0-9_:\-]{1,}\]$ ]] ; then
+                HOST_SECTION=""
+                # Set OTHER_SECTION var to name of section (strip [ and ] from section marker)
+                OTHER_SECTION="${line#[}"
+                OTHER_SECTION="${OTHER_SECTION%]}"
+                ((SECTIONS_NUM++))
+                continue
+        fi
+
+        # Are we reading in OTHER_SECTION?
+        if [[ "${OTHER_SECTION}" =~ ^[a-zA-Z0-9_:\-]{1,} ]] ; then
+                # Skip lines in OTHER_SECTION
+                continue
+        fi
+
+	# Check for valid FQDN
+	if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$) ]] ; then
+                # Valid HOST_NAME
+                HOST_NAME = $line
+                continue
+        fi
+
+done  <"${INI_FILE}"
+
