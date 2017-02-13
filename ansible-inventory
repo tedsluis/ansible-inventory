@@ -22,7 +22,7 @@ for PARAMETER in "$@" ; do
                 help
         elif [[ $PARAMETER == "--debug" ]] ; then
                 echo "Debug mode on!"
-                DEBUG_MODE="on"
+                DEBUG_MODE="ON"
         elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
                 INVENTORY_FILE="${PARAMETER#--inventory=}"
 		echo "Use inventory file '$INVENTORY_FILE'."
@@ -44,6 +44,7 @@ function get_inventory() {
         if [[ "${GREP_RESULT}" =~ ^inventory ]] ; then
                 GREP_RESULT=$(echo $GREP_RESULT | sed 's/ //g')
 		INVENTORY_FILE=${GREP_RESULT#inventory=}
+                INVENTORY_FILE=$(echo "$INVENTORY_FILE")
 		echo "3: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
                 if [ -f $INVENTORY_FILE ] ; then
 			ANSIBLE_CONFIG=$1
@@ -98,6 +99,7 @@ while read -r line || [ -n "$line" ] ; do
 
         # Skip blank lines and comments
         if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ] ; then
+                debug
                 continue
         fi
 
@@ -136,6 +138,7 @@ while read -r line || [ -n "$line" ] ; do
         # 
         if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]] ; then
         	debug        
+		continue
         fi
 
         # Check for valid FQDN
@@ -145,6 +148,7 @@ while read -r line || [ -n "$line" ] ; do
                 debug
                 continue
         fi
+	debug
 done  <"${INVENTORY_FILE}"
 
 echo "END"
