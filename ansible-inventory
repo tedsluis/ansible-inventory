@@ -2,7 +2,7 @@
 
 # Initialize variables
 DEBUG_MODE="off"
-INVENTORY_FILE="hosts"
+INVENTORY_FILE=""
 
 # Help text
 function help {
@@ -24,9 +24,8 @@ for PARAMETER in "$@" ; do
                 echo "Debug mode on!"
                 DEBUG_MODE="on"
         elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
-                INVENTORY_FILE=$PARAMETER
-                INVENTORY_FILE="${line#--inventory=}"
-                echo "Use inventory file '$INVENTORY_FILE='..."
+                INVENTORY_FILE="${PARAMETER#--inventory=}"
+		echo "Use inventory file '$INVENTORY_FILE'."
         else
                 echo "Error: Unknown input parameter specified: '$PARAMETER'"
                 help
@@ -40,27 +39,39 @@ fi
 
 # Get inventory file from ansible.cfg
 function get_inventory() {
-        if [ -f $1 ] ; then
-		$INVENTORY_FILE=$(cat $1 | grep ^inventory[[:space:]]*=)
-                $INVENTORY_FILE=${INVENTORY_FILE#inventory[[:space:]]*=[[:space:]]*}
+        GREP_RESULT="$(cat $1 | grep ^inventory[[:space:]]*=)"
+	echo "2: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
+        if [[ "${GREP_RESULT}" =~ ^inventory ]] ; then
+                GREP_RESULT=$(echo $GREP_RESULT | sed 's/ //g')
+		INVENTORY_FILE=${GREP_RESULT#inventory=}
+		echo "3: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
                 if [ -f $INVENTORY_FILE ] ; then
-                        echo "Uses inventory file '$INVENTORY_FILE' defined in '$1'."
+			ANSIBLE_CONFIG=$1
                 else
                         echo "Error: The inventory file '$INVENTORY_FILE' defined in '$1' doesn't exists!"
                         exit 1
-		fi
+                fi
+		return 0
+	else
+	        return 1	
         fi
 }
 
 # Validate inventory file.
 if [[ $INVENTORY_FILE == "" ]] ; then
-        if [ -f $ANSIBLE_CONFIG ] ; then
-                get_inventory $ANSIBLE_CONFIG
-        elif [ -f "ansible.cfg" ] ; then
-                get_inventory "ansible.cfg"
+	echo "1: ANSIBLE_CONFIG=$ANSIBLE_CONFIG, INVENTORY_FILE=$INVENTORY_FILE"
+	#echo $(get_inventory "$ANSIBLE_CONFIG")
+	#echo $(get_inventory "ansible.cfg")
+	if get_inventory "$ANSIBLE_CONFIG" || get_inventory "ansible.cfg" ; then
+                echo "Uses inventory file '$INVENTORY_FILE' defined in '$ANSIBLE_CONFIG'."
+        elif [ -f "hosts" ] ; then
+                INVENTORY_FILE='hosts'
+                echo "Uses inventory file '$INVENTORY_FILE' in current directory."
         else
-                echo "Error: No inventory file specified! Supply an inventory file in your Ansible config file '$ANSIBLE_CONFIG' or specify one as a parameter '--inventory=[PATH]<FILE>'."
+                echo "Error: No inventory file specified!"
+                echo "Supply an inventory file in your Ansible config file '$ANSIBLE_CONFIG' or specify one as a parameter '--inventory=[PATH]<FILE>'."
                 exit 1
+        fi
 fi
 
 # Check if inventory exists.
@@ -82,8 +93,7 @@ SECTIONS_NUM=0
 SECTION=""
 SECTION_TYPE=""
 
-while read -r line || [ -n "$line" ]
-do
+while read -r line || [ -n "$line" ] ; do
         ((LINE_NUM++))
 
         # Skip blank lines and comments
@@ -99,9 +109,9 @@ do
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
+                debug
                 continue
         fi
-
         # Found an 'children' SECTION marker?
         if [[ "${line}" =~ ^\[[a-zA-Z0-9_:\-]{1,}:children\]$ ]] ; then
                 # Set SECTION var to name of section (strip [ and ] from section marker)
@@ -109,9 +119,9 @@ do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
+                debug
                 continue
         fi
-
         # Found an 'vars' SECTION marker?
         if [[ "${line}" =~ ^\[[a-zA-Z0-9_\-]{1,}:vars\]$ ]] ; then
                 # Set SECTION var to name of section (strip [ and ] from section marker)
@@ -119,20 +129,22 @@ do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
+                debug
                 continue
         fi
 
         # 
         if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]] ; then
-                
+        	debug        
         fi
 
         # Check for valid FQDN
         if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$) ]] ; then
                 # Valid HOST_NAME
-                HOST_NAME = $line
+                HOST_NAME=$line
+                debug
                 continue
         fi
-
 done  <"${INVENTORY_FILE}"
 
+echo "END"
