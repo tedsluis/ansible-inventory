@@ -1,3 +1,6 @@
+jumphost1.ansible.test.example.com
+jumphost2.ansible.test.example.com
+
 # This is an example of a bring your own (byo) host inventory
 
 # Create an OSEv3 group that contains the masters and nodes groups
@@ -692,9 +695,12 @@ openshift_master_audit_config={"basicAuditEnabled": true}
 # host group for masters
 [masters]
 ose3-master[1:3]-ansible.test.example.com
+ose3-master4-ansible.test.example.com
 
 [etcd]
 ose3-etcd[1:3]-ansible.test.example.com
+ose3-etcd4-ansible.test.example.com
+ose3-etcd5-ansible.test.example.com
 
 # NOTE: Containerized load balancer hosts are not yet supported, if using a global
 # containerized=true host variable we must set to false.
@@ -707,3 +713,5 @@ ose3-lb-ansible.test.example.com containerized=false
 [nodes]
 ose3-master[1:3]-ansible.test.example.com
 ose3-node[1:2]-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
+ose3-node4-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
+ose3-node5-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
