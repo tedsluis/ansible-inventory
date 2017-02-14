@@ -84,7 +84,7 @@ fi
 # Debug mode
 function debug () {
         if [[ $DEBUG_MODE == "ON" ]] ; then
-                echo line = "${SECTION_NUM}:${LINE_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+                echo "$1" 
         fi
 }
 
@@ -99,7 +99,7 @@ while read -r line || [ -n "$line" ] ; do
 
         # Skip blank lines and comments
         if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ] ; then
-                debug
+                debug "${LINE_NUM}: $line"
                 continue
         fi
 
@@ -112,7 +112,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
-                debug
+                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
                 continue
         fi
         # Found an 'children' SECTION marker?
@@ -122,7 +122,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
-                debug
+                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -132,13 +132,13 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
-                debug
+                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
                 continue
         fi
 
         # 
         if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]] ; then
-        	debug        
+        	debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"       
 		continue
         fi
 
@@ -146,10 +146,10 @@ while read -r line || [ -n "$line" ] ; do
         if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$) ]] ; then
                 # Valid HOST_NAME
                 HOST_NAME=$line
-                debug
+                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
                 continue
         fi
-	debug
+	debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
 done  <"${INVENTORY_FILE}"
 
 echo "END"
