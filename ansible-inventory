@@ -104,10 +104,11 @@ while read -r line || [ -n "$line" ] ; do
         fi
 
         # Found a 'hosts' SECTION marker?
-        if [[ "${line}" =~ ^\[[a-zA-Z0-9_\-]{1,}\][[:space:]]*$ ]] ; then
+        if [[ "${line}" =~ ^\[[a-zA-Z0-9_\-]{1,}\][[:space:]]*#?.*$ ]] ; then
                 # Set SECTION & TYPE var to name of section (strip [ and ] from section marker)
                 SECTION_TYPE="hosts"
                 SECTION=${line//[[:space:]]/}
+                SECTION=$(echo $SECTION | sed 's/#.*$//g')
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
