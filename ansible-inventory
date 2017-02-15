@@ -4,6 +4,12 @@
 DEBUG_MODE="off"
 INVENTORY_FILE=""
 
+# Colors
+RED="\e[31m"
+GREEN="\e[32m"
+Yellow="\e[33m"
+NC="\e[0m" # No Color
+
 # Help text
 function help {
    echo ""
@@ -84,7 +90,7 @@ fi
 # Debug mode
 function debug () {
         if [[ $DEBUG_MODE == "ON" ]] ; then
-                echo "$1" 
+                echo -e "$1" 
         fi
 }
 
@@ -99,7 +105,7 @@ while read -r line || [ -n "$line" ] ; do
 
         # Skip blank lines and comments
         if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ] ; then
-                debug "${LINE_NUM}: $line"
+                debug "${LINE_NUM}> ${RED}skipped:${NC} $line"
                 continue
         fi
 
@@ -112,7 +118,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}host section parsed!${NC} $line"
                 continue
         fi
         # Found an 'children' SECTION marker?
@@ -122,7 +128,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}childeren section parsed!${NC} $line"
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -132,13 +138,13 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}vars section parsed!${NC} $line"
                 continue
         fi
 
         # 
         if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]] ; then
-        	debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"       
+        	debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}Variable found!${NC} $line"       
 		continue
         fi
 
@@ -146,10 +152,10 @@ while read -r line || [ -n "$line" ] ; do
         if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$) ]] ; then
                 # Valid HOST_NAME
                 HOST_NAME=$line
-                debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}FQDN found!${NC} $line"
                 continue
         fi
-	debug "${LINE_NUM}:${SECTION_NUM}: [${SECTION}:${SECTION_TYPE}] $line"
+	debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${RED}no parsed${NC}: $line"
 done  <"${INVENTORY_FILE}"
 
 echo "END"
