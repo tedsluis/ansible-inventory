@@ -149,7 +149,7 @@ while read -r line || [ -n "$line" ] ; do
         fi
 
         # Check for valid FQDN
-        if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$) ]] ; then
+        if [[ "${line}" =~ (?=^.{1,254}$)(^(?:(?!\d+\.)[a-zA-Z0-9_-]{1,63}\.?)+(?:[a-zA-Z]{2,})[[:space:]]{0,}$) ]] ; then
                 # Valid HOST_NAME
                 HOST_NAME=$line
                 debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}FQDN found!${NC} $line"

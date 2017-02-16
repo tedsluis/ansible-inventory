@@ -715,3 +715,6 @@ ose3-master[1:3]-ansible.test.example.com
 ose3-node[1:2]-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
 ose3-node4-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
 ose3-node5-ansible.test.example.com openshift_node_labels="{'region': 'primary', 'zone': 'default'}"
+abcd
+abcd.ab12
+ab12.abcd.ab
