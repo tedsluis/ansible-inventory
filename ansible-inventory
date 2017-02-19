@@ -9,6 +9,8 @@ RED="\e[31m"
 GREEN="\e[32m"
 YELLOW="\e[33m"
 BLUE="\e[34m"
+PURPLE="\e[35m"
+CYAN="\e[36m"
 NC="\e[0m" # No Color
 
 # Help text
@@ -32,7 +34,7 @@ for PARAMETER in "$@" ; do
                 DEBUG_MODE="ON"
         elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
                 INVENTORY_FILE="${PARAMETER#--inventory=}"
-		echo "Use inventory file '$INVENTORY_FILE'."
+                echo "Use inventory file '$INVENTORY_FILE'."
         else
                 echo "Error: Unknown input parameter specified: '$PARAMETER'"
                 help
@@ -47,30 +49,30 @@ fi
 # Get inventory file from ansible.cfg
 function get_inventory() {
         GREP_RESULT="$(cat $1 | grep ^inventory[[:space:]]*=)"
-	echo "2: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
+        echo "2: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
         if [[ "${GREP_RESULT}" =~ ^inventory ]] ; then
                 GREP_RESULT=$(echo $GREP_RESULT | sed 's/ //g')
-		INVENTORY_FILE=${GREP_RESULT#inventory=}
+                INVENTORY_FILE=${GREP_RESULT#inventory=}
                 INVENTORY_FILE=$(echo "$INVENTORY_FILE")
-		echo "3: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
+                echo "3: ANSIBLE_CONFIG=$1, INVENTORY_FILE=$INVENTORY_FILE, GREP_RESULT=$GREP_RESULT"
                 if [ -f $INVENTORY_FILE ] ; then
-			ANSIBLE_CONFIG=$1
+                        ANSIBLE_CONFIG=$1
                 else
                         echo "Error: The inventory file '$INVENTORY_FILE' defined in '$1' doesn't exists!"
                         exit 1
                 fi
-		return 0
-	else
-	        return 1	
+                return 0
+        else
+                return 1
         fi
 }
 
 # Validate inventory file.
 if [[ $INVENTORY_FILE == "" ]] ; then
-	echo "1: ANSIBLE_CONFIG=$ANSIBLE_CONFIG, INVENTORY_FILE=$INVENTORY_FILE"
-	#echo $(get_inventory "$ANSIBLE_CONFIG")
-	#echo $(get_inventory "ansible.cfg")
-	if get_inventory "$ANSIBLE_CONFIG" || get_inventory "ansible.cfg" ; then
+        echo "1: ANSIBLE_CONFIG=$ANSIBLE_CONFIG, INVENTORY_FILE=$INVENTORY_FILE"
+        #echo $(get_inventory "$ANSIBLE_CONFIG")
+        #echo $(get_inventory "ansible.cfg")
+        if get_inventory "$ANSIBLE_CONFIG" || get_inventory "ansible.cfg" ; then
                 echo "Uses inventory file '$INVENTORY_FILE' defined in '$ANSIBLE_CONFIG'."
         elif [ -f "hosts" ] ; then
                 INVENTORY_FILE='hosts'
@@ -95,12 +97,15 @@ function debug () {
         fi
 }
 
+# Initialize counter variables
 LINE_NUM=0
 SECTIONS_NUM=0
 
+# Initialize sections variables
 SECTION=""
 SECTION_TYPE=""
 
+# Proces inventory file
 while read -r line || [ -n "$line" ] ; do
         ((LINE_NUM++))
 
@@ -119,9 +124,10 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
-		debug "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
                 continue
         fi
+
         # Found an 'children' SECTION marker?
         if [[ "${line}" =~ ^\[[a-zA-Z0-9_:\-]{1,}:children\]$ ]] ; then
                 # Set SECTION var to name of section (strip [ and ] from section marker)
@@ -139,59 +145,80 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTIONS_NUM}> $YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
                 continue
         fi
 
         # Check for valid variable 
-        if [[ "${line}" =~ ^[a-zA-Z0-9._]{1,}[[:space:]]*= ]] ; then
-        	debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}Variable found!${NC} $line"       
-		continue
+        if [[ "${line}" =~ ^([a-zA-Z0-9._]{1,})[:space:]*=(.*) ]] ; then
+                VARIABLE=${BASH_REMATCH[1]}
+                VALUE=${BASH_REMATCH[2]}
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"       
+                continue
         fi
 
         # Check for valid FQDN
         if [[ "${line}" =~ ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[[:space:]]{0,}$ ]] ; then
                 # Valid HOST_NAME
-		HOST_NAME=$(echo $line | sed 's/ //g')
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN found!${NC} $line"
+                HOST_NAME=$(echo $line | sed 's/ //g')
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN parsed!${NC} $line"
                 continue
         fi
 
         # Check for valid FQDN with additional variable
-        if [[ "${line}" =~ ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[[:space:]]{0,}$ ]] ; then
+        if [[ "${line}" =~ ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[:space:]*[^=]*=.*$ ]] ; then
                 # Valid HOST_NAME
-                HOST_NAME=$line
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}FQDN found!${NC} $line"
+                if [[ "${line}" =~ ^([a-zA-Z0-9\-]{0,61})([a-zA-Z0-9\.\-]*)[:space:]*([^=]*)=(.*)$ ]] ; then
+                        HOST_NAME=${BASH_REMATCH[1]}
+                        DOMAIN=${BASH_REMATCH[2]}
+                        VARIABLE=${BASH_REMATCH[3]}
+                        VALUE=${BASH_REMATCH[4]}
+                fi
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with variable parsed!${NC} $line"
                 continue
         fi
 
         # Check for valid FQDN with ansible [1:4] notation
-	if [[ "${line}" =~ ^([a-zA-Z0-9][a-zA-Z0-9\-]{0,61})\[([0-9]{1,3}):([0-9]{1,3})\]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[[:space:]]{0,}$ ]] ; then
+        if [[ "${line}" =~ ^([a-zA-Z0-9][a-zA-Z0-9\-]{0,61})\[([0-9]{1,3}):([0-9]{1,3})\]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[:space:]*$ ]] ; then
                 # Valid HOST_NAME
-                FIRSTPART=${BASH_REMATCH[1]}
-                START=${BASH_REMATCH[2]}
-                END=${BASH_REMATCH[3]}
-                LASTPART=${BASH_REMATCH[4]}
-                DOMAIN=${BASH_REMATCH[5]}
-		echo "FIRSTPART=$FIRSTPART, START=$START, END=$END, LASTPART=$LASTPART DOMAIN=$DOMAIN"
-		for ((NUM=${START}; NUM<=${END}; NUM++))
-                        do
-                        HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
-                        debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN with [n:n] found!${NC} $line"
-                done
-                continue
+                if [[ "${line}" =~ ^([a-zA-Z0-9\-]{0,61})\[([0-9]{1,3}):([0-9]{1,3})\]([a-zA-Z0-9\-]{0,61})?([a-zA-Z0-9\.\-]*)?[space]*$ ]] ; then
+                        FIRSTPART=${BASH_REMATCH[1]}
+                        START=${BASH_REMATCH[2]}
+                        END=${BASH_REMATCH[3]}
+                        LASTPART=${BASH_REMATCH[4]}
+                        DOMAIN=${BASH_REMATCH[5]}
+                        for ((NUM=${START}; NUM<=${END}; NUM++))
+                                do
+                                HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
+                                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN with [n:n] parsed!${NC} $line"
+                        done
+                        continue
+                fi
         fi
  
         # Check for valid FQDN with ansible [1:4] notation with additional variable
-        if [[ "${line}" =~ ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}\[[0-9]{1,3}:[0-9]{1,3}\][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[[:space:]]{1,}[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[[:space:]]{0,}=[[:space:]]{0,} ]] ; then
+        if [[ "${line}" =~ ^([a-zA-Z0-9][a-zA-Z0-9\-]{0,61})\[([0-9]{1,3}):([0-9]{1,3})\]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[:space:]*[^=]*=.*$ ]] ; then
                 # Valid HOST_NAME
-                HOST_NAME=$line
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}FQDN with [n:n] found!${NC} $line"
-                continue
+                if [[ "${line}" =~ ^([a-zA-Z0-9\-]{0,61})\[([0-9]{1,3}):([0-9]{1,3})\]([a-zA-Z0-9\-]{0,61})?([a-zA-Z0-9\.\-]*)?[space]*([^=]*)=(.*)$ ]] ; then
+                        FIRSTPART=${BASH_REMATCH[1]}
+                        START=${BASH_REMATCH[2]}
+                        END=${BASH_REMATCH[3]}
+                        LASTPART=${BASH_REMATCH[4]}
+                        DOMAIN=${BASH_REMATCH[5]}
+                        VARIABLE=${BASH_REMATCH[6]}
+                        VALUE=${BASH_REMATCH[7]}
+                        for ((NUM=${START}; NUM<=${END}; NUM++))
+                                do
+                                HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
+                                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with [n:n] and variable parsed!${NC} $line"
+                        done
+                        continue
+                fi
         fi
-      
 
-	debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${RED}no parsed${NC}: $line"
+        # No Match!
+        debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${RED}Not parsed!${NC}: $line"
+
 done  <"${INVENTORY_FILE}"
 
 echo "END"
