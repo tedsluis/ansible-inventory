@@ -8,6 +8,7 @@ INVENTORY_FILE=""
 RED="\e[31m"
 GREEN="\e[32m"
 YELLOW="\e[33m"
+BLUE="\e[34m"
 NC="\e[0m" # No Color
 
 # Help text
@@ -105,7 +106,7 @@ while read -r line || [ -n "$line" ] ; do
 
         # Skip blank lines and comments
         if [ -z "$line" -o "${line:0:1}" = ";" -o "${line:0:1}" = "#" ] ; then
-                debug "${LINE_NUM}> ${RED}skipped:${NC} $line"
+                debug "${LINE_NUM}> ${BLUE}skipped:${NC} $line"
                 continue
         fi
 
@@ -118,7 +119,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION#[}"
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}host section parsed!${NC} $line"
+		debug "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
                 continue
         fi
         # Found an 'children' SECTION marker?
@@ -128,7 +129,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}childeren section parsed!${NC} $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}childeren section parsed!${NC} $line"
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -138,7 +139,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${line#[}"
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}vars section parsed!${NC} $line"
+                debug "${LINE_NUM}:${SECTIONS_NUM}> $YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
                 continue
         fi
 
@@ -151,8 +152,8 @@ while read -r line || [ -n "$line" ] ; do
         # Check for valid FQDN
         if [[ "${line}" =~ ^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])(\.([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]))*[[:space:]]{0,}$ ]] ; then
                 # Valid HOST_NAME
-                HOST_NAME=$line
-                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${GREEN}FQDN found!${NC} $line"
+		HOST_NAME=$(echo $line | sed 's/ //g')
+                debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN found!${NC} $line"
                 continue
         fi
 
@@ -170,11 +171,12 @@ while read -r line || [ -n "$line" ] ; do
                 FIRSTPART=${BASH_REMATCH[1]}
                 START=${BASH_REMATCH[2]}
                 END=${BASH_REMATCH[3]}
-		LASTPART=${BASH_REMATCH[4]}
-		echo "FIRSTPART=$FIRSTPART, START=$START, END=$END, LASTPART=$LASTPART"
+                LASTPART=${BASH_REMATCH[4]}
+                DOMAIN=${BASH_REMATCH[5]}
+		echo "FIRSTPART=$FIRSTPART, START=$START, END=$END, LASTPART=$LASTPART DOMAIN=$DOMAIN"
 		for ((NUM=${START}; NUM<=${END}; NUM++))
                         do
-                        HOST_NAME="${FIRSTPART}${NUM}${LASTPART}"
+                        HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
                         debug "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN with [n:n] found!${NC} $line"
                 done
                 continue
