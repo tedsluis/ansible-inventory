@@ -3,7 +3,7 @@
 # Initialize variables
 DEBUG_MODE="OFF"
 INVENTORY_FILE=""
-INTERACTIVE="OFF"
+INTERACTIVE="ON"
 
 # Colors
 RED="\e[31m"
@@ -13,34 +13,6 @@ BLUE="\e[34m"
 PURPLE="\e[35m"
 CYAN="\e[36m"
 NC="\e[0m" # No Color
-
-# Help text
-function help {
-   echo ""
-   echo "Help Ansible inventory query tool."
-   echo "   Usage:"
-   echo "      $ ansible-inventory --inventory=[PATH]<FILE>     The PATH to the inventory, which defaults to /etc/ansible/hosts."
-   echo "      $ ansible-inventory --debug                      Runs debug mode."
-   echo "      $ ansible-inventory --help                       This help text."
-   echo ""
-   exit 1
-}
-
-# Parse input parameters
-for PARAMETER in "$@" ; do
-        if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
-                help
-        elif [[ $PARAMETER == "--debug" ]] ; then
-                echo "Debug mode on!"
-                DEBUG_MODE="ON"
-        elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
-                INVENTORY_FILE="${PARAMETER#--inventory=}"
-                echo "Use inventory file '$INVENTORY_FILE'."
-        else
-                echo "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
-                help
-        fi
-done
 
 # Display message with or without ansi colors.
 function COLOR () {
@@ -53,25 +25,27 @@ function COLOR () {
         fi
 }
 
-# 
+# LOG routine
 function LOG () {
         TYPE=$1
         MESSAGE=$2
         case $TYPE in
                 "DEBUG")
                         if [[ $DEBUG_MODE == "ON" ]] ; then
-                                COLOR $MESSAGE 
+                                COLOR "$MESSAGE" 
                         fi
                         ;;
                 "MSG")
-                        COLOR $MESSAGE
+                        if [[ $INTERACTIVE == "ON" ]]; then
+                                COLOR "$MESSAGE"
+                        fi
                         ;;
                 "ERROR")
                         if [[ $INTERACTIVE == "ON" ]]; then
-                                COLOR $MESSAGE
+                                COLOR "$MESSAGE"
                         else
                                 # Remove ansi color and write only to stderr
-                                >2& echo "$MESSAGE" | sed -r "s/\\\\e\[[0-9]+m//g"
+				>&2 echo $(echo "$MESSAGE" | sed -r "s/\\\\e\[[0-9]+m//g")
                         fi
                         ;;
                 "DATA")
@@ -84,7 +58,40 @@ function LOG () {
 if [ -t 1 ] ; then
         INTERACTIVE="ON"
         LOG "DEBUG" "Interactive session!"
+else
+        INTERACTIVE="OFF"
 fi
+
+# Help text
+function help {
+   LOG "MSG" ""
+   LOG "MSG" "Help Ansible inventory query tool."
+   LOG "MSG" "   Usage:"
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --inventory=[PATH]<FILE>${NC}     The PATH to the inventory, which defaults to /etc/ansible/hosts."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --debug${NC}                      Runs debug mode."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --help${NC}                       This help text."
+   LOG "MSG" ""
+   exit 1
+}
+
+# Parse input parameters
+for PARAMETER in "$@" ; do
+        if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
+                help
+        elif [[ $PARAMETER == "--debug" ]] ; then
+                LOG "MSG" "Debug mode on!"
+                DEBUG_MODE="ON"
+        elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
+                INVENTORY_FILE="${PARAMETER#--inventory=}"
+                LOG "MSG" "Use inventory file '$INVENTORY_FILE'."
+        elif [[ $PARAMETER =~ ^--section=[a-zA-Z0-9_\-]* ]]; then
+                SECTION_FILTER="${PARAMETER#--section=}"
+                LOG "MSG" "Use section filter to '$SECTION_FILTER'."
+        else
+                LOG "ERROR" "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
+                help
+        fi
+done
 
 # Validate ANSIBLE_CONFIG
 if [[ $ANSIBLE_CONFIG == "" ]] ; then
@@ -163,6 +170,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
+		LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
 
@@ -174,6 +182,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}childeren section parsed!${NC} $line"
+		LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -184,6 +193,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
+		LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
 
@@ -191,7 +201,8 @@ while read -r line || [ -n "$line" ] ; do
         if [[ "${line}" =~ ^([a-zA-Z0-9._]{1,})[:space:]*=(.*) ]] ; then
                 VARIABLE=${BASH_REMATCH[1]}
                 VALUE=${BASH_REMATCH[2]}
-                LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"       
+                LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"
+                LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"	
                 continue
         fi
 
@@ -200,6 +211,7 @@ while read -r line || [ -n "$line" ] ; do
                 # Valid HOST_NAME
                 HOST_NAME=$(echo $line | sed 's/ //g')
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN parsed!${NC} $line"
+                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"	
                 continue
         fi
 
@@ -213,6 +225,7 @@ while read -r line || [ -n "$line" ] ; do
                         VALUE=${BASH_REMATCH[4]}
                 fi
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with variable parsed!${NC} $line"
+                LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
                 continue
         fi
 
@@ -229,6 +242,7 @@ while read -r line || [ -n "$line" ] ; do
                                 do
                                 HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
                                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN with [n:n] parsed!${NC} $line"
+                                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
                         done
                         continue
                 fi
@@ -249,13 +263,14 @@ while read -r line || [ -n "$line" ] ; do
                                 do
                                 HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
                                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with [n:n] and variable parsed!${NC} $line"
+                                LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
                         done
                         continue
                 fi
         fi
 
         # No Match!
-        LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${RED}Not parsed!${NC}: $line"
+        LOG "ERROR" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${RED}Not parsed!${NC}: $line"
 
 done  <"${INVENTORY_FILE}"
 
