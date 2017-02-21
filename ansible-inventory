@@ -4,6 +4,7 @@
 DEBUG_MODE="OFF"
 INVENTORY_FILE=""
 INTERACTIVE="ON"
+ACTION=""
 
 # Colors
 RED="\e[31m"
@@ -67,6 +68,16 @@ function help {
    LOG "MSG" ""
    LOG "MSG" "Help Ansible inventory query tool."
    LOG "MSG" "   Usage:"
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory get sections${NC}                 Get section(s)".
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory get hosts${NC}                    Get host(s)."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory get fqdns${NC}                    Get FQDN('s)."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory get variables${NC}                Get variable(s)."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory get values${NC}                   Get value(s)." 
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --section=<section>${NC}          Set filter to section."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --host=<host>${NC}                Set filter to host".
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --fqdn=<fqdn>${NC}                Set filter to fqdn."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --variable=<variable>${NC}        Set filter to variable."
+   LOG "MSG" "      $ ${YELLOW}ansible-inventory --value=<value>${NC}              Set filter to value."
    LOG "MSG" "      $ ${YELLOW}ansible-inventory --inventory=[PATH]<FILE>${NC}     The PATH to the inventory, which defaults to /etc/ansible/hosts."
    LOG "MSG" "      $ ${YELLOW}ansible-inventory --debug${NC}                      Runs debug mode."
    LOG "MSG" "      $ ${YELLOW}ansible-inventory --help${NC}                       This help text."
@@ -78,15 +89,27 @@ function help {
 for PARAMETER in "$@" ; do
         if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
                 help
-        elif [[ $PARAMETER == "--debug" ]] ; then
+        elif [[ $ACTION != "get" ]] && [[ $PARAMETER == "--debug" ]] ; then
                 LOG "MSG" "Debug mode on!"
                 DEBUG_MODE="ON"
-        elif [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
+        elif [[ $ACTION != "get" ]] && [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
                 INVENTORY_FILE="${PARAMETER#--inventory=}"
                 LOG "MSG" "Use inventory file '$INVENTORY_FILE'."
-        elif [[ $PARAMETER =~ ^--section=[a-zA-Z0-9_\-]* ]]; then
+        elif [[ $ACTION != "get" ]] && [[ $PARAMETER =~ ^--section=[a-zA-Z0-9_\-]* ]]; then
                 SECTION_FILTER="${PARAMETER#--section=}"
                 LOG "MSG" "Use section filter to '$SECTION_FILTER'."
+        elif [[ $PARAMETER =~ ^get$ ]]; then
+                ACTION="get"
+        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^sections?$ ]]; then
+                ACTION="SECTIONs"
+        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^hosts?$ ]]; then
+                ACTION="HOSTS"
+        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^fqdns?$ ]]; then
+                ACTION="FQDNS"
+        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^variables?$ ]]; then
+                ACTION="VARIABLES"
+        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^values?$ ]]; then
+                ACTION="VALUES"
         else
                 LOG "ERROR" "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
                 help
