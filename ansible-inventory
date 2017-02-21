@@ -66,21 +66,31 @@ fi
 # Help text
 function help {
    LOG "MSG" ""
-   LOG "MSG" "Help Ansible inventory query tool."
-   LOG "MSG" "   Usage:"
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory get sections${NC}                 Get section(s)".
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory get hosts${NC}                    Get host(s)."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory get fqdns${NC}                    Get FQDN('s)."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory get variables${NC}                Get variable(s)."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory get values${NC}                   Get value(s)." 
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --section=<section>${NC}          Set filter to section."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --host=<host>${NC}                Set filter to host".
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --fqdn=<fqdn>${NC}                Set filter to fqdn."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --variable=<variable>${NC}        Set filter to variable."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --value=<value>${NC}              Set filter to value."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --inventory=[PATH]<FILE>${NC}     The PATH to the inventory, which defaults to /etc/ansible/hosts."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --debug${NC}                      Runs debug mode."
-   LOG "MSG" "      $ ${YELLOW}ansible-inventory --help${NC}                       This help text."
+   LOG "MSG" "Ansible inventory query tool."
+   LOG "MSG" ""
+   LOG "MSG" "Usage:"
+   LOG "MSG" "  ${YELLOW}ansible-inventory [OPTIONS] COMMAND [arg...]${NC}"
+   LOG "MSG" "  ${YELLOW}ansible-inventory [ -h | --help | -v | --version ]${NC}"
+   LOG "MSG" ""
+   LOG "MSG" "Options:"
+   LOG "MSG" "  ${YELLOW}--inventory=[PATH]<FILE>${NC}     The PATH to the inventory, which defaults to /etc/ansible/hosts."
+   LOG "MSG" "  ${YELLOW}-d | --debug${NC}                 Runs debug mode."
+   LOG "MSG" "  ${YELLOW}-v | --version${NC}               Get version."
+   LOG "MSG" "  ${YELLOW}-h | --help${NC}                  This help text."
+   LOG "MSG"
+   LOG "MSG" "Commands:"
+   LOG "MSG" "  ${YELLOW}get sections${NC}                 Get section(s)".
+   LOG "MSG" "  ${YELLOW}get hosts${NC}                    Get host(s)."
+   LOG "MSG" "  ${YELLOW}get fqdns${NC}                    Get FQDN('s)."
+   LOG "MSG" "  ${YELLOW}get variables${NC}                Get variable(s)."
+   LOG "MSG" "  ${YELLOW}get values${NC}                   Get value(s)." 
+   LOG "MSG" ""
+   LOG "MSG" "Arguments:"
+   LOG "MSG" "  ${YELLOW}--section=<section>${NC}          Set filter to section."
+   LOG "MSG" "  ${YELLOW}--host=<host>${NC}                Set filter to host".
+   LOG "MSG" "  ${YELLOW}--fqdn=<fqdn>${NC}                Set filter to fqdn."
+   LOG "MSG" "  ${YELLOW}--variable=<variable>${NC}        Set filter to variable."
+   LOG "MSG" "  ${YELLOW}--value=<value>${NC}              Set filter to value."
    LOG "MSG" ""
    exit 1
 }
