@@ -4,6 +4,7 @@
 DEBUG_MODE="OFF"
 INVENTORY_FILE=""
 INTERACTIVE="ON"
+COMMAND=""
 ACTION=""
 
 # Colors
@@ -69,57 +70,86 @@ function help {
    LOG "MSG" "Ansible inventory query tool."
    LOG "MSG" ""
    LOG "MSG" "Usage:"
-   LOG "MSG" "  ${YELLOW}ansible-inventory [OPTIONS] COMMAND [arg...]${NC}"
+   LOG "MSG" "  ${YELLOW}ansible-inventory [OPTIONS] [ARGUMENTS] COMMAND${NC}"
    LOG "MSG" "  ${YELLOW}ansible-inventory [ -h | --help | -v | --version ]${NC}"
    LOG "MSG" ""
-   LOG "MSG" "Options:"
-   LOG "MSG" "  ${YELLOW}--inventory=[PATH]<FILE>${NC}     The PATH to the inventory, which defaults to /etc/ansible/hosts."
-   LOG "MSG" "  ${YELLOW}-d | --debug${NC}                 Runs debug mode."
-   LOG "MSG" "  ${YELLOW}-v | --version${NC}               Get version."
-   LOG "MSG" "  ${YELLOW}-h | --help${NC}                  This help text."
+   LOG "MSG" "OPTIONS:"
+   LOG "MSG" "  ${YELLOW}-d | --debug${NC}                              Runs debug mode."
+   LOG "MSG" "  ${YELLOW}-v | --version${NC}                            Get version."
+   LOG "MSG" "  ${YELLOW}-h | --help${NC}                               This help text."
+   LOG "MSG" "  ${YELLOW}--inventory=[PATH]<FILE>${NC}                  The PATH to the inventory,"
+   LOG "MSG" "                                                          which defaults to /etc/ansible/hosts."
+   LOG "MSG" "ARGUMENTS:"
+   LOG "MSG" "  ${YELLOW}--group=<section>${NC}                         Set group filter."
+   LOG "MSG" "  ${YELLOW}--host=<host>${NC}                             Set host filter."
+   LOG "MSG" "  ${YELLOW}--fqdn=<fqdn>${NC}                             Set fqdn filter."
+   LOG "MSG" "  ${YELLOW}--variable=<variable>${NC}                     Set variable filter."
+   LOG "MSG" "  ${YELLOW}--value=<value>${NC}                           Set value filter."
    LOG "MSG"
-   LOG "MSG" "Commands:"
-   LOG "MSG" "  ${YELLOW}get sections${NC}                 Get section(s)".
-   LOG "MSG" "  ${YELLOW}get hosts${NC}                    Get host(s)."
-   LOG "MSG" "  ${YELLOW}get fqdns${NC}                    Get FQDN('s)."
-   LOG "MSG" "  ${YELLOW}get variables${NC}                Get variable(s)."
-   LOG "MSG" "  ${YELLOW}get values${NC}                   Get value(s)." 
-   LOG "MSG" ""
-   LOG "MSG" "Arguments:"
-   LOG "MSG" "  ${YELLOW}--section=<section>${NC}          Set filter to section."
-   LOG "MSG" "  ${YELLOW}--host=<host>${NC}                Set filter to host".
-   LOG "MSG" "  ${YELLOW}--fqdn=<fqdn>${NC}                Set filter to fqdn."
-   LOG "MSG" "  ${YELLOW}--variable=<variable>${NC}        Set filter to variable."
-   LOG "MSG" "  ${YELLOW}--value=<value>${NC}              Set filter to value."
+   LOG "MSG" "COMMANDS:"
+   LOG "MSG" "  ${YELLOW}list [groups|hosts|fqdns|variable|values]${NC} List group(s)".
+   LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show group(s)".
+   LOG "MSG" "  ${YELLOW}ssh <host>${NC}                                Show group(s)".
    LOG "MSG" ""
    exit 1
+}
+
+# Version text
+function {
+   LOG "MSG" ""
+   LOG "MSG" "ansible-inventory February 2017."
+   LOG "MSG" ""
 }
 
 # Parse input parameters
 for PARAMETER in "$@" ; do
         if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
                 help
-        elif [[ $ACTION != "get" ]] && [[ $PARAMETER == "--debug" ]] ; then
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER == "--debug" ]] ; then
                 LOG "MSG" "Debug mode on!"
                 DEBUG_MODE="ON"
-        elif [[ $ACTION != "get" ]] && [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
                 INVENTORY_FILE="${PARAMETER#--inventory=}"
                 LOG "MSG" "Use inventory file '$INVENTORY_FILE'."
-        elif [[ $ACTION != "get" ]] && [[ $PARAMETER =~ ^--section=[a-zA-Z0-9_\-]* ]]; then
-                SECTION_FILTER="${PARAMETER#--section=}"
-                LOG "MSG" "Use section filter to '$SECTION_FILTER'."
-        elif [[ $PARAMETER =~ ^get$ ]]; then
-                ACTION="get"
-        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^sections?$ ]]; then
-                ACTION="SECTIONs"
-        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^hosts?$ ]]; then
-                ACTION="HOSTS"
-        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^fqdns?$ ]]; then
-                ACTION="FQDNS"
-        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^variables?$ ]]; then
-                ACTION="VARIABLES"
-        elif [[ $ACTION == "get" ]] && [[ $PARAMETER =~ ^values?$ ]]; then
-                ACTION="VALUES"
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--groups?=[a-zA-Z0-9_\-]+$ ]]; then
+		GROUP_FILTER=$(echo $PARAMETER | sed 's/^--groups?=//g')
+                LOG "MSG" "Use group filter '$GROUP_FILTER'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--hosts?=[a-zA-Z0-9_\-]+$ ]]; then
+                HOST_FILTER=$(echo $PARAMETER | sed 's/^--hosts?=//g')
+                LOG "MSG" "Use host filter '$HOST_FILTER'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--fqdns?=[a-zA-Z0-9_\.\-]+$ ]]; then
+                FQDN_FILTER=$(echo $PARAMETER | sed 's/^--fqdns?=//g')
+                LOG "MSG" "Use fqdn filter '$FQDN_FILTER'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--variables?[a-zA-Z0-9_\-]+$ ]]; then
+                VARIABLE_FILTER=$(echo $PARAMETER | sed 's/^--variables?=//g')
+                LOG "MSG" "Use variable filter '$VARIABLE_FILTER'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--values?=[^[:space:]]+$ ]]; then
+                VALUE_FILTER=$(echo $PARAMETER | sed 's/^--values?=//g')
+                LOG "MSG" "Use value filter '$VALUE_FILTER'."
+	elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^list$ ]]; then
+                COMMAND="LIST"
+                LOG "MSG" "COMMAND = '$COMMAND'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^show$ ]]; then
+                COMMAND="SHOW"
+                LOG "MSG" "COMMAND = '$COMMAND'."
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^ssh$ ]]; then
+                COMMAND="SSH"
+                LOG "MSG" "COMMAND = '$COMMAND'."
+	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^groups?$ ]]; then
+                ACTION="GROUP"
+                LOG "MSG" "ACTION = '$ACTION'."
+	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^hosts?$ ]]; then
+                ACTION="HOST"
+                LOG "MSG" "ACTION = '$ACTION'."
+	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^fqdns?$ ]]; then
+                ACTION="FQDN"
+                LOG "MSG" "ACTION = '$ACTION'."
+	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^variables?$ ]]; then
+                ACTION="VARIABLE"
+                LOG "MSG" "ACTION = '$ACTION'."
+	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^values?$ ]]; then
+                ACTION="VALUE"
+                LOG "MSG" "ACTION = '$ACTION'."
         else
                 LOG "ERROR" "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
                 help
