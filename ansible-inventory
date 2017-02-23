@@ -80,16 +80,16 @@ function help {
    LOG "MSG" "  ${YELLOW}--inventory=[PATH]<FILE>${NC}                  The PATH to the inventory,"
    LOG "MSG" "                                            which defaults to /etc/ansible/hosts."
    LOG "MSG" "ARGUMENTS:"
-   LOG "MSG" "  ${YELLOW}--group=<section>${NC}                         Set group filter."
+   LOG "MSG" "  ${YELLOW}--group=group${NC}                             Set group filter."
    LOG "MSG" "  ${YELLOW}--host=<host>${NC}                             Set host filter."
    LOG "MSG" "  ${YELLOW}--fqdn=<fqdn>${NC}                             Set fqdn filter."
    LOG "MSG" "  ${YELLOW}--variable=<variable>${NC}                     Set variable filter."
    LOG "MSG" "  ${YELLOW}--value=<value>${NC}                           Set value filter."
    LOG "MSG"
    LOG "MSG" "COMMANDS:"
-   LOG "MSG" "  ${YELLOW}list [groups|hosts|fqdns|variable|values]${NC} List group(s)".
-   LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show group(s)".
-   LOG "MSG" "  ${YELLOW}ssh <host>${NC}                                Show group(s)".
+   LOG "MSG" "  ${YELLOW}list [groups|hosts|fqdns|variable|values]${NC} List on one row".
+   LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show in columns".
+   LOG "MSG" "  ${YELLOW}ssh <host>${NC}                                Remote login".
    LOG "MSG" ""
    exit 0
 }
@@ -153,6 +153,9 @@ for PARAMETER in "$@" ; do
 	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^values?$ ]]; then
                 ACTION="VALUE"
                 LOG "MSG" "ACTION = '$ACTION'."
+        elif [[ $HOST == "" ]] && [[ $COMMAND =~ ^(SSH)$ ]] && [[ $PARAMETER =~ ^[@a-zA-Z0-9\_\-\.]+$ ]]; then
+                HOST=$PARAMETER
+                LOG "MSG" "HOST = '$HOST'."
         else
                 LOG "ERROR" "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
                 help
