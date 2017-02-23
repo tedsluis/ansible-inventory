@@ -78,7 +78,7 @@ function help {
    LOG "MSG" "  ${YELLOW}-v | --version${NC}                            Get version."
    LOG "MSG" "  ${YELLOW}-h | --help${NC}                               This help text."
    LOG "MSG" "  ${YELLOW}--inventory=[PATH]<FILE>${NC}                  The PATH to the inventory,"
-   LOG "MSG" "                                                          which defaults to /etc/ansible/hosts."
+   LOG "MSG" "                                            which defaults to /etc/ansible/hosts."
    LOG "MSG" "ARGUMENTS:"
    LOG "MSG" "  ${YELLOW}--group=<section>${NC}                         Set group filter."
    LOG "MSG" "  ${YELLOW}--host=<host>${NC}                             Set host filter."
@@ -91,20 +91,23 @@ function help {
    LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show group(s)".
    LOG "MSG" "  ${YELLOW}ssh <host>${NC}                                Show group(s)".
    LOG "MSG" ""
-   exit 1
+   exit 0
 }
 
 # Version text
-function {
+function version {
    LOG "MSG" ""
    LOG "MSG" "ansible-inventory February 2017."
    LOG "MSG" ""
+   exit 0
 }
 
 # Parse input parameters
 for PARAMETER in "$@" ; do
         if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
                 help
+        elif [[ $PARAMETER == "--version" ]] || [[ $PARAMETER == "-version" ]] || [[ $PARAMETER == "-v" ]]; then
+                version 
         elif [[ $COMMAND == "" ]] && [[ $PARAMETER == "--debug" ]] ; then
                 LOG "MSG" "Debug mode on!"
                 DEBUG_MODE="ON"
