@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # Initialize variables
+SCRIPTNAME=$(basename $0)
 DEBUG_MODE="OFF"
 INVENTORY_FILE=""
 INTERACTIVE="ON"
 COMMAND=""
 ACTION=""
+PARAMETER_LIST="${SCRIPTNAME}"
 
 # Colors
 RED="\e[31m"
@@ -47,7 +49,7 @@ function LOG () {
                                 COLOR "$MESSAGE"
                         else
                                 # Remove ansi color and write only to stderr
-				>&2 echo $(echo "$MESSAGE" | sed -r "s/\\\\e\[[0-9]+m//g")
+                                >&2 echo $(echo "$MESSAGE" | sed -r "s/\\\\e\[[0-9]+m//g")
                         fi
                         ;;
                 "DATA")
@@ -70,8 +72,8 @@ function help {
    LOG "MSG" "Ansible inventory query tool."
    LOG "MSG" ""
    LOG "MSG" "Usage:"
-   LOG "MSG" "  ${YELLOW}ansible-inventory [OPTIONS] [ARGUMENTS] COMMAND${NC}"
-   LOG "MSG" "  ${YELLOW}ansible-inventory [ -h | --help | -v | --version ]${NC}"
+   LOG "MSG" "  ${YELLOW}${SCRIPTNAME} [OPTIONS] [ARGUMENTS] COMMAND${NC}"
+   LOG "MSG" "  ${YELLOW}${SCRIPTNAME} [ -h | --help | -v | --version ]${NC}"
    LOG "MSG" ""
    LOG "MSG" "OPTIONS:"
    LOG "MSG" "  ${YELLOW}-d | --debug${NC}                              Runs debug mode."
@@ -97,13 +99,15 @@ function help {
 # Version text
 function version {
    LOG "MSG" ""
-   LOG "MSG" "ansible-inventory February 2017."
+   LOG "MSG" "${SCRIPTNAME}, February 2017."
    LOG "MSG" ""
    exit 0
 }
 
 # Parse input parameters
 for PARAMETER in "$@" ; do
+        #
+        # Options
         if [[ $PARAMETER == "--help" ]] || [[ $PARAMETER == "-help" ]] || [[ $PARAMETER == "-h" ]]; then
                 help
         elif [[ $PARAMETER == "--version" ]] || [[ $PARAMETER == "-version" ]] || [[ $PARAMETER == "-v" ]]; then
@@ -114,8 +118,10 @@ for PARAMETER in "$@" ; do
         elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--inventory=[a-zA-Z_\-/]{1,} ]]; then
                 INVENTORY_FILE="${PARAMETER#--inventory=}"
                 LOG "MSG" "Use inventory file '$INVENTORY_FILE'."
+        #
+        # Arguments
         elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--groups?=[a-zA-Z0-9_\-]+$ ]]; then
-		GROUP_FILTER=$(echo $PARAMETER | sed 's/^--groups?=//g')
+                GROUP_FILTER=$(echo $PARAMETER | sed 's/^--groups?=//g')
                 LOG "MSG" "Use group filter '$GROUP_FILTER'."
         elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--hosts?=[a-zA-Z0-9_\-]+$ ]]; then
                 HOST_FILTER=$(echo $PARAMETER | sed 's/^--hosts?=//g')
@@ -129,37 +135,24 @@ for PARAMETER in "$@" ; do
         elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^--values?=[^[:space:]]+$ ]]; then
                 VALUE_FILTER=$(echo $PARAMETER | sed 's/^--values?=//g')
                 LOG "MSG" "Use value filter '$VALUE_FILTER'."
-	elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^list$ ]]; then
-                COMMAND="LIST"
+        #
+        # Commands
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^(list|show|ssh)$ ]]; then
+                COMMAND=$(echo ${BASH_REMATCH[1]} | tr /a-z/ /A-Z/)
                 LOG "MSG" "COMMAND = '$COMMAND'."
-        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^show$ ]]; then
-                COMMAND="SHOW"
-                LOG "MSG" "COMMAND = '$COMMAND'."
-        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^ssh$ ]]; then
-                COMMAND="SSH"
-                LOG "MSG" "COMMAND = '$COMMAND'."
-	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^groups?$ ]]; then
-                ACTION="GROUP"
+        #
+        # Command parameters
+        elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^(groups?|hosts?|fqdns?|variables?|values?)$ ]]; then
+                ACTION=$(echo ${BASH_REMATCH[1]} | sed 's/s?$//g' | tr /a-z/ /A-Z/)
                 LOG "MSG" "ACTION = '$ACTION'."
-	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^hosts?$ ]]; then
-                ACTION="HOST"
-                LOG "MSG" "ACTION = '$ACTION'."
-	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^fqdns?$ ]]; then
-                ACTION="FQDN"
-                LOG "MSG" "ACTION = '$ACTION'."
-	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^variables?$ ]]; then
-                ACTION="VARIABLE"
-                LOG "MSG" "ACTION = '$ACTION'."
-	elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^values?$ ]]; then
-                ACTION="VALUE"
-                LOG "MSG" "ACTION = '$ACTION'."
-        elif [[ $HOST == "" ]] && [[ $COMMAND =~ ^(SSH)$ ]] && [[ $PARAMETER =~ ^[@a-zA-Z0-9\_\-\.]+$ ]]; then
+        elif [[ $HOST == "" ]] && [[ $COMMAND =~ ^(SSH)$ ]] && [[ $PARAMETER =~ ^[a-zA-Z0-9]([@a-zA-Z0-9\_\-\.]*[a-zA-Z0-9]|[a-zA-Z0-9])*$ ]]; then
                 HOST=$PARAMETER
                 LOG "MSG" "HOST = '$HOST'."
         else
-                LOG "ERROR" "${RED}Error: Unknown input parameter specified: '$PARAMETER'${NC}"
-                help
+                LOG "ERROR" "${RED}Error: Unknown input parameter specified: '${YELLOW}${PARAMETER_LIST} ${RED}${PARAMETER}${YELLOW}'${NC}"
+                exit
         fi
+        PARAMETER_LIST="$PARAMETER_LIST $PARAMETER"
 done
 
 # Validate ANSIBLE_CONFIG
@@ -239,7 +232,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
-		LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
 
@@ -251,7 +244,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}childeren section parsed!${NC} $line"
-		LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -262,7 +255,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
-		LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 continue
         fi
 
@@ -271,7 +264,7 @@ while read -r line || [ -n "$line" ] ; do
                 VARIABLE=${BASH_REMATCH[1]}
                 VALUE=${BASH_REMATCH[2]}
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"
-                LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"	
+                LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
                 continue
         fi
 
@@ -280,7 +273,7 @@ while read -r line || [ -n "$line" ] ; do
                 # Valid HOST_NAME
                 HOST_NAME=$(echo $line | sed 's/ //g')
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN parsed!${NC} $line"
-                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"	
+                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
                 continue
         fi
 
