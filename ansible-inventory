@@ -89,8 +89,9 @@ function help {
    LOG "MSG" "  ${YELLOW}--value=<value>${NC}                           Set value filter."
    LOG "MSG"
    LOG "MSG" "COMMANDS:"
+   LOG "MSG" "  ${YELLOW}get [groups|hosts|fqdns|variable|values]${NC}  Get output in columns".
    LOG "MSG" "  ${YELLOW}list [groups|hosts|fqdns|variable|values]${NC} List on one row".
-   LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show in columns".
+   LOG "MSG" "  ${YELLOW}show [groups|hosts|fqdns|variable|values]${NC} Show as lines".
    LOG "MSG" "  ${YELLOW}ssh <host>${NC}                                Remote login".
    LOG "MSG" ""
    exit 0
@@ -99,7 +100,7 @@ function help {
 # Version text
 function version {
    LOG "MSG" ""
-   LOG "MSG" "${SCRIPTNAME}, February 2017."
+   LOG "MSG" "${SCRIPTNAME}, version 0.1, February 2017."
    LOG "MSG" ""
    exit 0
 }
@@ -137,12 +138,12 @@ for PARAMETER in "$@" ; do
                 LOG "MSG" "Use value filter '$VALUE_FILTER'."
         #
         # Commands
-        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^(list|show|ssh)$ ]]; then
+        elif [[ $COMMAND == "" ]] && [[ $PARAMETER =~ ^(get|list|show|ssh)$ ]]; then
                 COMMAND=$(echo ${BASH_REMATCH[1]} | tr /a-z/ /A-Z/)
                 LOG "MSG" "COMMAND = '$COMMAND'."
         #
         # Command parameters
-        elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^(groups?|hosts?|fqdns?|variables?|values?)$ ]]; then
+        elif [[ $ACTION == "" ]] && [[ $COMMAND =~ ^(GET|LIST|SHOW)$ ]] && [[ $PARAMETER =~ ^(groups?|hosts?|fqdns?|variables?|values?)$ ]]; then
                 ACTION=$(echo ${BASH_REMATCH[1]} | sed 's/s?$//g' | tr /a-z/ /A-Z/)
                 LOG "MSG" "ACTION = '$ACTION'."
         elif [[ $HOST == "" ]] && [[ $COMMAND =~ ^(SSH)$ ]] && [[ $PARAMETER =~ ^[a-zA-Z0-9]([@a-zA-Z0-9\_\-\.]*[a-zA-Z0-9]|[a-zA-Z0-9])*$ ]]; then
@@ -154,6 +155,11 @@ for PARAMETER in "$@" ; do
         fi
         PARAMETER_LIST="$PARAMETER_LIST $PARAMETER"
 done
+
+# Set default commnad
+if [[ $COMMAND == "" ]] ; then
+        COMMAND="show"
+fi
 
 # Validate ANSIBLE_CONFIG
 if [[ $ANSIBLE_CONFIG == "" ]] ; then
@@ -232,7 +238,9 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
-                LOG "DATA" "$SECTION ($SECTION_TYPE)"
+		if [[ $ACTION == "GROUP" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                      LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                fi
                 continue
         fi
 
@@ -244,7 +252,9 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}childeren section parsed!${NC} $line"
-                LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                if [[ $ACTION == "GROUP" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                        LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                fi
                 continue
         fi
         # Found an 'vars' SECTION marker?
@@ -255,7 +265,9 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
-                LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                if [[ $ACTION == "GROUP" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                        LOG "DATA" "$SECTION ($SECTION_TYPE)"
+                fi
                 continue
         fi
 
@@ -264,7 +276,9 @@ while read -r line || [ -n "$line" ] ; do
                 VARIABLE=${BASH_REMATCH[1]}
                 VALUE=${BASH_REMATCH[2]}
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"
-                LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                if [[ $ACTION == "VARIABLE" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                      LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                fi
                 continue
         fi
 
@@ -273,7 +287,9 @@ while read -r line || [ -n "$line" ] ; do
                 # Valid HOST_NAME
                 HOST_NAME=$(echo $line | sed 's/ //g')
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN parsed!${NC} $line"
-                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                if [[ $ACTION == "HOST" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                        LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                fi
                 continue
         fi
 
@@ -287,7 +303,9 @@ while read -r line || [ -n "$line" ] ; do
                         VALUE=${BASH_REMATCH[4]}
                 fi
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with variable parsed!${NC} $line"
-                LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                if [[ $ACTION == "HOST" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                        LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                fi
                 continue
         fi
 
@@ -304,7 +322,9 @@ while read -r line || [ -n "$line" ] ; do
                                 do
                                 HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
                                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${NC} ${GREEN}FQDN with [n:n] parsed!${NC} $line"
-                                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                                if [[ $ACTION == "HOST" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then
+                                        LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                                fi
                         done
                         continue
                 fi
@@ -325,7 +345,9 @@ while read -r line || [ -n "$line" ] ; do
                                 do
                                 HOST_NAME="${FIRSTPART}${NUM}${LASTPART}$DOMAIN"
                                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with [n:n] and variable parsed!${NC} $line"
-                                LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                                if [[ $ACTION == "HOST" ]] && [[ $SECTION =~ ${GROUP_FILTER} ]] ; then 
+                                        LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                                fi
                         done
                         continue
                 fi
