@@ -245,7 +245,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}]${NC}(${SECTION_TYPE}) ${GREEN}host section parsed!${NC} $line"
-		if [[ $ACTION == "SECTION" ]] && (( [[ $SECTION_FILTER ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) ; then
+		if [[ $ACTION == "SECTION" ]] && ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then
                       LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 fi
                 continue
@@ -259,7 +259,7 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:children]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}childeren section parsed!${NC} $line"
-		if [[ $ACTION == "SECTION" ]] && (( [[ $SECTION_FILTER == "" ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) ; then
+		if [[ $ACTION == "SECTION" ]] && ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then
                         LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 fi
                 continue
@@ -269,8 +269,8 @@ while read -r line || [ -n "$line" ] ; do
 	if [[ $SECTION_TYPE == "children" ]] && [[ "${line}" =~ ^([a-zA-Z0-9_\-]+)[:space:]*$ ]] ; then
                 GROUP=${BASH_REMATCH[1]}
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${GROUP}${NC} ${GREEN}Group parsed!${NC} $line"
-		if [[ $ACTION == "GROUP" ]] && (( [[ $GROUP_FILTER == "" ]] || [[ $GROUP =~ ${GROUP_FILTER} ]] )) && \
-                   (( [[ $SECTION_FILTER == "" ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) ; then
+		if [[ $ACTION == "GROUP" ]] && ( [ -z ${GROUP_FILTER} ] || [[ $GROUP =~ ${GROUP_FILTER} ]] )) && \
+                   ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then
 			LOG "DATA" "$GROUP"
                 fi
                 continue
@@ -284,20 +284,23 @@ while read -r line || [ -n "$line" ] ; do
                 SECTION="${SECTION%:vars]}"
                 ((SECTIONS_NUM++))
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> ${YELLOW}[${SECTION}:${SECTION_TYPE}]${NC} ${GREEN}vars section parsed!${NC} $line"
-		if [[ $ACTION == "SECTION" ]] && (( [[ $SECTION_FILTER == "" ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) ; then
+		if [[ $ACTION == "SECTION" ]] && ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then
                         LOG "DATA" "$SECTION ($SECTION_TYPE)"
                 fi
                 continue
         fi
 
         # Check for valid variable 
-        if [[ "${line}" =~ ^([a-zA-Z0-9._]{1,})[:space:]*=(.*) ]] ; then
+        if [[ "${line}" =~ ^([a-zA-Z0-9._]{1,})[:space:]*=(.*)$ ]] ; then
                 VARIABLE=${BASH_REMATCH[1]}
                 VALUE=${BASH_REMATCH[2]}
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}Variable parsed!${NC} $line"
-		if [[ $ACTION == "VARIABLE" ]] && (( [[ $SECTION_FILTER == "" ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) && \
-                   (( [[ $VARIABLE_FILTER == "" ]] || [[ $SECTION =~ ${VARIABLE_FILTER} ]] )); then
-                      LOG "DATA" "$VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                if ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then
+		        if [[ $ACTION == "VARIABLE" ]] && ( [ -z ${VARIABLE_FILTER} ] || [[ $VARIABLE =~ ${VARIABLE_FILTER} ]] ); then
+                                LOG "DATA" "'$VARIABLE'=$VALUE ($SECTION,$SECTION_TYPE)"
+                        elif [[ $ACTION == "VALUE" ]] && ( [ -z ${VALUE_FILTER} ] || [[ $VARIABLE =~ ${VALUE_FILTER} ]] ); then
+                                LOG "DATA" "$VARIABLE='$VALUE' ($SECTION,$SECTION_TYPE)"
+                        fi
                 fi
                 continue
         fi
@@ -311,9 +314,12 @@ while read -r line || [ -n "$line" ] ; do
                 fi
                 FQDN="${HOST_NAME}${DOMAIN}"
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${GREEN}${DOMAIN}${NC} ${GREEN}FQDN parsed!${NC} $line"
-		if [[ $ACTION == "HOST" ]] && (( [[ $SECTION_FILTER == "" ]] || [[ $SECTION =~ ${SECTION_FILTER} ]] )) && \
-                   (( [[ $HOST_FILTER == "" ]] || [[ $SECTION =~ ${HOST_FILTER} ]] )) ; then
-                        LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                if ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) ; then 
+		        if [[ $ACTION == "HOST" ]] && ( [ -z ${HOST_FILTER} ] || [[ $HOST_NAME =~ ${HOST_FILTER} ]] ) ; then
+                                LOG "DATA" "$HOST_NAME ($SECTION,$SECTION_TYPE)"
+                        elif [[ $ACTION == "FQDN" ]] && ( [ -z ${FQDN_FILTER} ] || [[ $FQDN =~ ${FQDN_FILTER} ]] ) ; then
+                                LOG "DATA" "$FQDN ($SECTION,$SECTION_TYPE)"
+                        fi
                 fi
                 continue
         fi
@@ -329,8 +335,17 @@ while read -r line || [ -n "$line" ] ; do
                 fi
                 FQDN="${HOST_NAME}${DOMAIN}"
                 LOG "DEBUG" "${LINE_NUM}:${SECTIONS_NUM}> [${SECTION}:${SECTION_TYPE}] ${YELLOW}${HOST_NAME}${GREEN}${DOMAIN} ${PURPLE}${VARIABLE}${NC}=${CYAN}${VALUE}${NC} ${GREEN}FQDN with variable parsed!${NC} $line"
-                if [[ $ACTION == "HOST" ]] && [[ $SECTION =~ ${SECTION_FILTER} ]] ; then
-                        LOG "DATA" "$HOST_NAME $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                if ( [ -z ${SECTION_FILTER} ] || [[ $SECTION =~ ${SECTION_FILTER} ]] ) && ( [ -z ${HOST_FILTER} ] || [[ $HOST_NAME =~ ${HOST_FILTER} ]] ) && \
+                           ( [ -z ${VARIABLE_FILTER} ] || [[ $VARIABLE =~ ${VARIABLE_FILTER} ]] ) && ( [ -z ${VALUE_FILTER} ] || [[ $VARIABLE =~ ${VALUE_FILTER} ]] ); then
+                        if [[ $ACTION == "HOST" ]] ; then
+                                LOG "DATA" "'$HOST_NAME' $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                        elif [[ $ACTION == "FQDN" ]] ; then
+                                LOG "DATA" "'$FQDN' $VARIABLE=$VALUE ($SECTION,$SECTION_TYPE)"
+                        elif [[ $ACTION == "VARIABLE" ]] ; then
+                                LOG "DATA" "$FQDN '$VARIABLE'=$VALUE ($SECTION,$SECTION_TYPE)"
+                        elif [[ $ACTION == "VALUE" ]] ; then
+                                LOG "DATA" "$FQDN $VARIABLE='$VALUE' ($SECTION,$SECTION_TYPE)"
+                        fi
                 fi
                 continue
         fi
